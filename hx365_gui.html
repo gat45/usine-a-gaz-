@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HX365 Command Center</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lemonadejs/dist/lemonade.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --glass-bg: rgba(15, 20, 28, 0.95);
+            --glass-border: rgba(255, 255, 255, 0.05);
+            --primary: #0ea5e9;
+            --primary-dark: #0284c7;
+        }
+        
+        body {
+            background: #0a0a0f;
+            color: #e2e8f0;
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+        }
+        
+        .glass {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+        }
+        
+        .message-user {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+        }
+        
+        .message-assistant {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .typing-indicator {
+            display: inline-block;
+            width: auto;
+            padding: 0.5rem 1rem;
+            border-radius: 1rem;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .sidebar {
+            min-width: 280px;
+        }
+        
+        .chat-container {
+            height: calc(100vh - 120px);
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        
+        .status-online { background-color: #10b981; }
+        .status-busy { background-color: #f59e0b; }
+        .status-error { background-color: #ef4444; }
+        .status-offline { background-color: #6b7280; }
+        
+        .monitor-val {
+            font-family: 'JetBrains Mono', monospace;
+            color: #00d9ff;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .progress-bar {
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: var(--primary);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 200px;
+            width: 100%;
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col p-4 overflow-hidden">
+
+    <!-- Header -->
+    <header class="glass rounded-2xl p-4 mb-4 flex justify-between items-center">
+        <div class="flex items-center gap-8">
+            <h1 class="text-2xl font-black text-white italic">HX<span class="text-cyan-400">365</span> Command Center</h1>
+            <div class="flex gap-6 text-[11px] uppercase tracking-widest text-gray-500">
+                <div class="flex items-center gap-2">CPU <span id="cpuLoad" class="monitor-val ml-1">0%</span></div>
+                <div class="flex items-center gap-2">RAM <span id="ramLoad" class="monitor-val ml-1">0GB</span></div>
+                <div class="flex items-center gap-2">
+                    NPU 
+                    <span id="npuStatus" class="status-indicator status-offline"></span>
+                    <span id="npuStatusText" class="text-xs">OFF</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    FastFlowLM 
+                    <span id="fflmStatus" class="status-indicator status-offline"></span>
+                    <span id="fflmStatusText" class="text-xs">OFFLINE</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    Companion 
+                    <span id="compStatus" class="status-indicator status-offline"></span>
+                    <span id="compStatusText" class="text-xs">OFFLINE</span>
+                </div>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <button id="settingsBtn" class="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors">
+                <i class="fas fa-cog"></i>
+            </button>
+            <button id="newChatBtn" class="p-2 rounded-lg bg-cyan-600 hover:bg-cyan-700 transition-colors">
+                <i class="fas fa-plus"></i>
+            </button>
+        </div>
+    </header>
+
+    <div class="flex flex-1 gap-4">
+        <!-- Sidebar -->
+        <aside class="sidebar glass rounded-2xl p-4 flex flex-col">
+            <div class="flex border-b border-white/10 pb-2 mb-4">
+                <button id="chatTabBtn" class="flex-1 py-2 text-center font-bold border-b-2 border-cyan-400 text-cyan-400">CHAT</button>
+                <button id="configTabBtn" class="flex-1 py-2 text-center text-gray-400">CONFIG</button>
+                <button id="monitorTabBtn" class="flex-1 py-2 text-center text-gray-400">MONITOR</button>
+                <button id="logsTabBtn" class="flex-1 py-2 text-center text-gray-400">LOGS</button>
+            </div>
+            
+            <div id="chatTab" class="tab-content active flex-1">
+                <h2 class="text-lg font-bold mb-4 text-cyan-400">Sessions</h2>
+                <div class="flex-1 overflow-y-auto">
+                    <div class="mb-2 p-3 bg-cyan-500/10 border border-cyan-500/30 rounded-xl cursor-pointer session-item active">
+                        <div class="font-bold">Session Actuelle</div>
+                        <div class="text-xs text-gray-400">12 messages</div>
+                    </div>
+                    <div class="mb-2 p-3 bg-white/5 rounded-xl cursor-pointer session-item">
+                        <div class="font-bold">Projet Alpha</div>
+                        <div class="text-xs text-gray-400">45 messages</div>
+                    </div>
+                    <div class="mb-2 p-3 bg-white/5 rounded-xl cursor-pointer session-item">
+                        <div class="font-bold">Recherche</div>
+                        <div class="text-xs text-gray-400">23 messages</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="configTab" class="tab-content">
+                <h2 class="text-lg font-bold mb-4 text-cyan-400">Configuration</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Température</label>
+                        <input type="range" id="tempSlider" min="0" max="2" step="0.1" value="0.7" class="w-full">
+                        <div class="flex justify-between text-xs text-gray-400">
+                            <span>Précis</span>
+                            <span id="tempValue">0.7</span>
+                            <span>Aléatoire</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Max Tokens</label>
+                        <select id="maxTokensSelect" class="w-full bg-black/30 border border-white/10 rounded p-2 text-sm">
+                            <option>1024</option>
+                            <option selected>2048</option>
+                            <option>4096</option>
+                            <option>8192</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Top-P</label>
+                        <input type="range" id="topPSlider" min="0" max="1" step="0.05" value="0.9" class="w-full">
+                        <div class="flex justify-between text-xs text-gray-400">
+                            <span>0</span>
+                            <span id="topPValue">0.9</span>
+                            <span>1</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Companion Depth</label>
+                        <select id="compDepthSelect" class="w-full bg-black/30 border border-white/10 rounded p-2 text-sm">
+                            <option>Shallow</option>
+                            <option selected>Medium</option>
+                            <option>Deep</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="monitorTab" class="tab-content">
+                <h2 class="text-lg font-bold mb-4 text-cyan-400">Ressources</h2>
+                <div class="space-y-4">
+                    <div>
+                        <div class="flex justify-between text-sm mb-1">
+                            <span>CPU</span>
+                            <span id="cpuMonitorValue">0%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div id="cpuProgress" class="progress-fill"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-sm mb-1">
+                            <span>RAM</span>
+                            <span id="ramMonitorValue">0GB</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div id="ramProgress" class="progress-fill"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-sm mb-1">
+                            <span>NPU</span>
+                            <span id="npuMonitorValue">0%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div id="npuProgress" class="progress-fill"></div>
+                        </div>
+                    </div>
+                    <div class="chart-container mt-4">
+                        <canvas id="resourceChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="logsTab" class="tab-content">
+                <h2 class="text-lg font-bold mb-4 text-cyan-400">Journal Système</h2>
+                <div id="logTerminal" class="bg-black/30 rounded p-2 h-64 overflow-y-auto font-mono text-xs">
+                    <div class="text-green-400">[INFO] HX365 Command Center démarré</div>
+                    <div class="text-yellow-400">[WARN] FastFlowLM hors-ligne, tentative de connexion...</div>
+                    <div class="text-blue-400">[DEBUG] Optimisation Ryzen 9 HX appliquée</div>
+                    <div class="text-purple-400">[RAG] Index vectoriel chargé (1,248 chunks)</div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Chat Area -->
+        <main class="flex-1 flex flex-col">
+            <div id="chatContainer" class="chat-container glass rounded-2xl p-4 flex flex-col">
+                <div id="chatHistory" class="flex-1 overflow-y-auto space-y-4 mb-4 p-2">
+                    <div class="message-assistant p-4 rounded-2xl max-w-[80%] text-sm">
+                        <div class="font-bold text-cyan-400">HX365 Assistant</div>
+                        <div>Bienvenue dans le Command Center HX365 ! Je suis votre assistant IA optimisé pour les processeurs Ryzen 9 HX et le NPU XDNA. Comment puis-je vous aider aujourd'hui ?</div>
+                    </div>
+                </div>
+                
+                <div class="bg-white/5 rounded-xl p-2 flex flex-col border border-white/5">
+                    <div class="flex gap-2 mb-2">
+                        <button id="pasteBtn" class="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-xs flex items-center">
+                            <i class="fas fa-paste mr-1"></i> Coller
+                        </button>
+                        <button id="fileUploadBtn" class="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-xs flex items-center">
+                            <i class="fas fa-file-upload mr-1"></i> Fichier
+                        </button>
+                        <button id="cmdBtn" class="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-xs flex items-center">
+                            <i class="fas fa-terminal mr-1"></i> Cmd
+                        </button>
+                        <button id="npuOffloadBtn" class="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-xs flex items-center">
+                            <i class="fas fa-microchip mr-1"></i> NPU
+                        </button>
+                    </div>
+                    
+                    <div class="flex gap-2">
+                        <textarea 
+                            id="userInput" 
+                            class="flex-1 bg-transparent border-none focus:ring-0 text-sm resize-none" 
+                            placeholder="Tapez votre message ici... (Coller du texte long avec Ctrl+V)"
+                            rows="2"
+                        ></textarea>
+                        <button id="sendBtn" class="bg-cyan-600 px-6 py-2 rounded-lg font-bold text-xs self-end">ENVOYER</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+        <div class="glass rounded-2xl p-6 w-1/3">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold">Paramètres Système</h3>
+                <button id="closeSettings" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm mb-2">URL FastFlowLM</label>
+                    <input type="text" id="fastflowUrl" class="w-full bg-black/30 border border-white/10 rounded p-2 text-sm" value="http://127.0.0.1:52625/v1">
+                </div>
+                <div>
+                    <label class="block text-sm mb-2">URL Companion</label>
+                    <input type="text" id="companionUrl" class="w-full bg-black/30 border border-white/10 rounded p-2 text-sm" value="http://127.0.0.1:52626/v1">
+                </div>
+                <div>
+                    <label class="block text-sm mb-2">Prompt Système</label>
+                    <textarea id="systemPrompt" class="w-full bg-black/30 border border-white/10 rounded p-2 text-sm h-32" placeholder="Définissez le prompt système ici..."></textarea>
+                </div>
+                <div class="flex items-center">
+                    <input type="checkbox" id="enableNpu" class="mr-2">
+                    <label for="enableNpu" class="text-sm">Activer l'accélération NPU (XDNA)</label>
+                </div>
+                <div class="flex justify-end gap-2">
+                    <button id="cancelSettings" class="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20">Annuler</button>
+                    <button id="saveSettings" class="px-4 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-700">Enregistrer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- File Upload Modal -->
+    <div id="fileModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+        <div class="glass rounded-2xl p-6 w-1/3">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold">Charger un Document</h3>
+                <button id="closeFileModal" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm mb-2">Sélectionnez un fichier</label>
+                    <input type="file" id="fileInput" class="w-full bg-black/30 border border-white/10 rounded p-2 text-sm" accept=".txt,.pdf,.docx,.py,.js,.html,.css,.md">
+                </div>
+                <div class="flex items-center">
+                    <input type="checkbox" id="addToRag" class="mr-2" checked>
+                    <label for="addToRag" class="text-sm">Ajouter au système RAG</label>
+                </div>
+                <div class="flex justify-end gap-2">
+                    <button id="cancelFile" class="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20">Annuler</button>
+                    <button id="uploadFile" class="px-4 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-700">Charger</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // État de l'application
+        const appState = {
+            currentSession: 'default_session',
+            isTyping: false,
+            systemStatus: {
+                fastflowlm: 'offline',
+                companion: 'offline',
+                npu: 'disabled'
+            },
+            resourceData: {
+                cpu: [],
+                ram: [],
+                npu: []
+            }
+        };
+
+        // Initialiser le graphique
+        const ctx = document.getElementById('resourceChart').getContext('2d');
+        const resourceChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: Array(20).fill(''),
+                datasets: [{
+                    label: 'CPU %',
+                    data: Array(20).fill(0),
+                    borderColor: '#0ea5e9',
+                    backgroundColor: 'rgba(14, 165, 233, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.4,
+                    fill: false
+                }, {
+                    label: 'RAM %',
+                    data: Array(20).fill(0),
+                    borderColor: '#10b981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.4,
+                    fill: false
+                }, {
+                    label: 'NPU %',
+                    data: Array(20).fill(0),
+                    borderColor: '#8b5cf6',
+                    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.4,
+                    fill: false
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        labels: {
+                            color: '#e2e8f0'
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
+                        },
+                        ticks: {
+                            color: '#94a3b8'
+                        }
+                    },
+                    y: {
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
+                        },
+                        ticks: {
+                            color: '#94a3b8'
+                        },
+                        min: 0,
+                        max: 100
+                    }
+                }
+            }
+        });
+
+        // Mise à jour des statistiques système
+        async function updateStats() {
+            try {
+                const r = await fetch('http://127.0.0.1:8080/v1/system/status');
+                if(r.ok) {
+                    const d = await r.json();
+                    
+                    // Mettre à jour les indicateurs de statut
+                    updateServiceStatus('fflm', d.services.fastflowlm.status);
+                    updateServiceStatus('comp', d.services.companion.status);
+                    updateServiceStatus('npu', d.system_metrics.npu_utilization > 0 ? 'busy' : 'ready');
+                    
+                    // Mettre à jour les mesures système
+                    document.getElementById('cpuLoad').innerText = d.system_metrics.cpu_percent.toFixed(1) + '%';
+                    document.getElementById('ramLoad').innerText = (d.system_metrics.ram_used_gb).toFixed(2) + 'GB';
+                    
+                    // Mettre à jour le panneau de surveillance
+                    document.getElementById('cpuMonitorValue').innerText = d.system_metrics.cpu_percent.toFixed(1) + '%';
+                    document.getElementById('ramMonitorValue').innerText = (d.system_metrics.ram_used_gb).toFixed(2) + 'GB';
+                    document.getElementById('npuMonitorValue').innerText = (d.system_metrics.npu_utilization * 100).toFixed(1) + '%';
+                    
+                    // Mettre à jour les barres de progression
+                    document.getElementById('cpuProgress').style.width = d.system_metrics.cpu_percent + '%';
+                    document.getElementById('ramProgress').style.width = d.system_metrics.ram_percent + '%';
+                    document.getElementById('npuProgress').style.width = (d.system_metrics.npu_utilization * 100) + '%';
+                    
+                    // Ajouter les données au graphique
+                    appState.resourceData.cpu.push(d.system_metrics.cpu_percent);
+                    appState.resourceData.ram.push(d.system_metrics.ram_percent);
+                    appState.resourceData.npu.push(d.system_metrics.npu_utilization * 100);
+                    
+                    // Garder seulement les 20 dernières valeurs
+                    if(appState.resourceData.cpu.length > 20) {
+                        appState.resourceData.cpu.shift();
+                        appState.resourceData.ram.shift();
+                        appState.resourceData.npu.shift();
+                    }
+                    
+                    // Mettre à jour le graphique
+                    resourceChart.data.datasets[0].data = [...Array(20 - appState.resourceData.cpu.length).fill(null), ...appState.resourceData.cpu];
+                    resourceChart.data.datasets[1].data = [...Array(20 - appState.resourceData.ram.length).fill(null), ...appState.resourceData.ram];
+                    resourceChart.data.datasets[2].data = [...Array(20 - appState.resourceData.npu.length).fill(null), ...appState.resourceData.npu];
+                    resourceChart.update();
+                } else {
+                    console.error(`Stats API error: ${r.status}`);
+                }
+            } catch(e) {
+                console.error('Stats fetch error:', e);
+            }
+        }
+
+        function updateServiceStatus(service, status) {
+            const statusIndicator = document.getElementById(`${service}Status`);
+            const statusText = document.getElementById(`${service}StatusText`);
+            
+            switch(status) {
+                case 'ready':
+                    statusIndicator.className = 'status-indicator status-online';
+                    statusText.innerText = 'READY';
+                    break;
+                case 'busy':
+                    statusIndicator.className = 'status-indicator status-busy';
+                    statusText.innerText = 'BUSY';
+                    break;
+                case 'error':
+                    statusIndicator.className = 'status-indicator status-error';
+                    statusText.innerText = 'ERROR';
+                    break;
+                case 'offline':
+                default:
+                    statusIndicator.className = 'status-indicator status-offline';
+                    statusText.innerText = 'OFFLINE';
+                    break;
+            }
+        }
+
+        // Mettre à jour les stats toutes les 2 secondes
+        setInterval(updateStats, 2000);
+        // Mettre à jour immédiatement
+        updateStats();
+
+        // Fonction pour envoyer un message
+        async function sendMessage() {
+            const input = document.getElementById('userInput');
+            const chatHistory = document.getElementById('chatHistory');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            // Afficher le message utilisateur
+            const userMsgDiv = document.createElement('div');
+            userMsgDiv.className = 'message-user self-end p-4 rounded-2xl max-w-[80%] text-sm';
+            userMsgDiv.innerHTML = `
+                <div class="font-bold text-white">Vous</div>
+                <div>${message}</div>
+            `;
+            chatHistory.appendChild(userMsgDiv);
+            
+            // Effacer le champ d'entrée
+            input.value = '';
+            
+            // Afficher l'indicateur de frappe
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'message-assistant p-4 rounded-2xl max-w-[80%] text-sm';
+            typingDiv.innerHTML = '<div class="typing-indicator">En train de taper...</div>';
+            chatHistory.appendChild(typingDiv);
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+            
+            try {
+                // Déterminer si on utilise le Companion pour enrichissement
+                const useCompanion = message.toLowerCase().includes('recherche') || 
+                                   message.toLowerCase().includes('internet') ||
+                                   message.toLowerCase().includes('cherche');
+                
+                // Obtenir les paramètres de configuration
+                const temp = parseFloat(document.getElementById('tempSlider').value);
+                const maxTokens = parseInt(document.getElementById('maxTokensSelect').value);
+                const topP = parseFloat(document.getElementById('topPSlider').value);
+                
+                // Préparer la requête
+                const requestBody = {
+                    messages: [
+                        {role: 'user', content: message}
+                    ],
+                    temperature: temp,
+                    max_tokens: maxTokens,
+                    top_p: topP,
+                    stream: false,
+                    user: appState.currentSession
+                };
+                
+                // Envoyer la requête à l'API
+                const response = await fetch('http://127.0.0.1:8080/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(requestBody)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                const assistantResponse = data.choices[0].message.content;
+                
+                // Remplacer l'indicateur de frappe par la réponse
+                typingDiv.innerHTML = `
+                    <div class="font-bold text-cyan-400">HX365 Assistant</div>
+                    <div>${assistantResponse}</div>
+                `;
+            } catch (error) {
+                console.error('Erreur lors de l\'envoi du message:', error);
+                typingDiv.innerHTML = `<div class="text-red-400">Erreur: Impossible de contacter le serveur. (${error.message})</div>`;
+            }
+            
+            // Faire défiler vers le bas
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+        }
+
+        // Gestionnaires d'événements
+        document.getElementById('sendBtn').addEventListener('click', sendMessage);
+        
+        document.getElementById('userInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+        
+        // Bouton coller
+        document.getElementById('pasteBtn').addEventListener('click', function() {
+            navigator.clipboard.readText().then(function(text) {
+                const input = document.getElementById('userInput');
+                input.value += text;
+                input.focus();
+            }).catch(function(err) {
+                alert('Impossible d\'accéder au presse-papiers: ' + err);
+            });
+        });
+        
+        // Bouton commande
+        document.getElementById('cmdBtn').addEventListener('click', function() {
+            const input = document.getElementById('userInput');
+            input.value = '/';
+            input.focus();
+        });
+        
+        // Bouton NPU Offload
+        document.getElementById('npuOffloadBtn').addEventListener('click', function() {
+            const input = document.getElementById('userInput');
+            input.value += ' [NPU_OFFLOAD]';
+            input.focus();
+        });
+        
+        // Bouton upload fichier
+        document.getElementById('fileUploadBtn').addEventListener('click', function() {
+            document.getElementById('fileModal').classList.remove('hidden');
+        });
+        
+        // Gestion des onglets
+        document.getElementById('chatTabBtn').addEventListener('click', function() {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.getElementById('chatTab').classList.add('active');
+            document.querySelectorAll('[id$="TabBtn"]').forEach(btn => btn.classList.remove('text-cyan-400', 'border-cyan-400'));
+            this.classList.add('text-cyan-400', 'border-cyan-400');
+        });
+        
+        document.getElementById('configTabBtn').addEventListener('click', function() {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.getElementById('configTab').classList.add('active');
+            document.querySelectorAll('[id$="TabBtn"]').forEach(btn => btn.classList.remove('text-cyan-400', 'border-cyan-400'));
+            this.classList.add('text-cyan-400', 'border-cyan-400');
+        });
+        
+        document.getElementById('monitorTabBtn').addEventListener('click', function() {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.getElementById('monitorTab').classList.add('active');
+            document.querySelectorAll('[id$="TabBtn"]').forEach(btn => btn.classList.remove('text-cyan-400', 'border-cyan-400'));
+            this.classList.add('text-cyan-400', 'border-cyan-400');
+        });
+        
+        document.getElementById('logsTabBtn').addEventListener('click', function() {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.getElementById('logsTab').classList.add('active');
+            document.querySelectorAll('[id$="TabBtn"]').forEach(btn => btn.classList.remove('text-cyan-400', 'border-cyan-400'));
+            this.classList.add('text-cyan-400', 'border-cyan-400');
+        });
+        
+        // Gestion des sliders
+        document.getElementById('tempSlider').addEventListener('input', function() {
+            document.getElementById('tempValue').innerText = this.value;
+        });
+        
+        document.getElementById('topPSlider').addEventListener('input', function() {
+            document.getElementById('topPValue').innerText = this.value;
+        });
+        
+        // Gestion des modals
+        document.getElementById('settingsBtn').addEventListener('click', function() {
+            document.getElementById('settingsModal').classList.remove('hidden');
+        });
+        
+        document.getElementById('closeSettings').addEventListener('click', function() {
+            document.getElementById('settingsModal').classList.add('hidden');
+        });
+        
+        document.getElementById('cancelSettings').addEventListener('click', function() {
+            document.getElementById('settingsModal').classList.add('hidden');
+        });
+        
+        document.getElementById('closeFileModal').addEventListener('click', function() {
+            document.getElementById('fileModal').classList.add('hidden');
+        });
+        
+        document.getElementById('cancelFile').addEventListener('click', function() {
+            document.getElementById('fileModal').classList.add('hidden');
+        });
+        
+        document.getElementById('uploadFile').addEventListener('click', function() {
+            const fileInput = document.getElementById('fileInput');
+            const addToRag = document.getElementById('addToRag').checked;
+            
+            if (fileInput.files.length === 0) {
+                alert('Veuillez sélectionner un fichier');
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                const content = e.target.result;
+                
+                // Si ajout au RAG est coché, envoyer au système RAG
+                if (addToRag) {
+                    fetch('http://127.0.0.1:8080/v1/rag/ingest', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            content: content,
+                            title: file.name
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log('Document ajouté au RAG:', data);
+                        alert(`Document "${file.name}" ajouté au système RAG avec succès!`);
+                        document.getElementById('fileModal').classList.add('hidden');
+                    })
+                    .catch(error => {
+                        console.error('Erreur lors de l\'ajout au RAG:', error);
+                        alert(`Erreur lors de l'ajout au RAG: ${error.message}`);
+                    });
+                } else {
+                    // Sinon, simplement ajouter le contenu au champ de saisie
+                    const userInput = document.getElementById('userInput');
+                    userInput.value += `\n\nContenu du fichier "${file.name}":\n${content}`;
+                    document.getElementById('fileModal').classList.add('hidden');
+                }
+            };
+            
+            reader.readAsText(file);
+        });
+        
+        // Sélection de session
+        document.querySelectorAll('.session-item').forEach(item => {
+            item.addEventListener('click', function() {
+                document.querySelectorAll('.session-item').forEach(i => i.classList.remove('active'));
+                this.classList.add('active');
+                appState.currentSession = this.querySelector('.font-bold').textContent;
+            });
+        });
+        
+        // Nouvelle session
+        document.getElementById('newChatBtn').addEventListener('click', function() {
+            // Créer une nouvelle session
+            const newSessionId = 'session_' + Date.now();
+            appState.currentSession = newSessionId;
+            
+            // Réinitialiser l'historique de chat
+            document.getElementById('chatHistory').innerHTML = '';
+            
+            // Ajouter un message de bienvenue
+            const welcomeMsg = document.createElement('div');
+            welcomeMsg.className = 'message-assistant p-4 rounded-2xl max-w-[80%] text-sm';
+            welcomeMsg.innerHTML = `
+                <div class="font-bold text-cyan-400">HX365 Assistant</div>
+                <div>Nouvelle session créée. Comment puis-je vous aider ?</div>
+            `;
+            document.getElementById('chatHistory').appendChild(welcomeMsg);
+            
+            // Ajouter la nouvelle session à la liste (simulé)
+            const sessionList = document.querySelector('#chatTab .overflow-y-auto');
+            const newSessionItem = document.createElement('div');
+            newSessionItem.className = 'mb-2 p-3 bg-cyan-500/10 border border-cyan-500/30 rounded-xl cursor-pointer session-item';
+            newSessionItem.innerHTML = `
+                <div class="font-bold">Session ${newSessionId.substring(0, 8)}</div>
+                <div class="text-xs text-gray-400">Nouveau</div>
+            `;
+            
+            // Réorganiser les éléments de session
+            document.querySelectorAll('.session-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            newSessionItem.classList.add('active');
+            
+            // Ajouter le nouvel élément au début
+            sessionList.insertBefore(newSessionItem, sessionList.firstChild);
+            
+            // Ajouter l'événement de clic
+            newSessionItem.addEventListener('click', function() {
+                document.querySelectorAll('.session-item').forEach(i => i.classList.remove('active'));
+                this.classList.add('active');
+                appState.currentSession = this.querySelector('.font-bold').textContent;
+            });
+        });
+        
+        // Simuler une mise à jour des logs
+        setInterval(() => {
+            const logTerminal = document.getElementById('logTerminal');
+            const now = new Date();
+            const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+            
+            // Ajouter une entrée de log aléatoire
+            const logEntries = [
+                `[${timeStr}] [INFO] Traitement de la requête utilisateur`,
+                `[${timeStr}] [DEBUG] Embedding généré pour la requête`,
+                `[${timeStr}] [RAG] 3 chunks récupérés avec succès`,
+                `[${timeStr}] [NPU] Tâche d'inférence démarrée`,
+                `[${timeStr}] [PERF] Optimisation Ryzen 9 appliquée`,
+                `[${timeStr}] [CACHE] Hit ratio: 87%`
+            ];
+            
+            const randomEntry = logEntries[Math.floor(Math.random() * logEntries.length)];
+            const logLine = document.createElement('div');
+            
+            if(randomEntry.includes('[INFO]')) logLine.className = 'text-green-400';
+            else if(randomEntry.includes('[WARN]')) logLine.className = 'text-yellow-400';
+            else if(randomEntry.includes('[ERROR]')) logLine.className = 'text-red-400';
+            else if(randomEntry.includes('[DEBUG]')) logLine.className = 'text-blue-400';
+            else if(randomEntry.includes('[RAG]')) logLine.className = 'text-purple-400';
+            else if(randomEntry.includes('[NPU]')) logLine.className = 'text-cyan-400';
+            else logLine.className = 'text-gray-400';
+            
+            logLine.textContent = randomEntry;
+            logTerminal.appendChild(logLine);
+            
+            // Faire défiler vers le bas
+            logTerminal.scrollTop = logTerminal.scrollHeight;
+            
+            // Limiter le nombre de lignes à 50
+            if(logTerminal.children.length > 50) {
+                logTerminal.removeChild(logTerminal.firstChild);
+            }
+        }, 5000);
+    </script>
+</body>
+</html>

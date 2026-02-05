@@ -1,263 +1,161 @@
-# usine-a-gaz-
- 🏗️ ARCHITECTURE DU SYSTÈME
+# HX365 Command Center - Projet Final
 
-    Structure Modulaire
+## Vue d'Ensemble
 
-      1 HX365 Command Center
-      2 ├── Backend (FastAPI)
-      3 │   ├── hx365_core_fixed.py      # Moteur central
-      4 │   ├── hx365_api.py            # API REST
-      5 │   ├── hx365_hardware.py       # Optimisation matérielle
-      6 │   └── hx365_system.py         # Coordination
-      7 ├── RAG System (USearch/BGE)
-      8 │   ├── hx365_rag.py           # Moteur RAG
-      9 │   └── Vector Storage         # Indexation USearch
-     10 ├── Power User Features
-     11 │   └── hx365_power_user.py    # Fonctions avancées
-     12 ├── Frontend (HTML/CSS/JS)
-     13 │   ├── hx365_gui.html         # Interface principale
-     14 │   ├── hx365_test_gui.html    # Interface de tests
-     15 │   └── hx365_gui_improved.html # Interface améliorée
-     16 ├── GUI (Tkinter)
-     17 │   └── hx365_tkinter_gui.py   # Interface Tkinter
-     18 └── Scripts & Config
-     19     ├── main_final.py          # Point d'entrée
-     20     ├── requirements_fixed.txt # Dépendances
-     21     └── *.bat                  # Scripts Windows
+HX365 Command Center est une plateforme d'orchestration IA avancée qui intègre FastFlowLM et son Companion. Le logiciel sert d'interface de pilotage matériel autant qu'une interface de chat, spécialement optimisé pour les processeurs AMD Ryzen 9 HX et les unités de traitement neuronal XDNA.
 
-    Architecture Technique
-     - Backend: FastAPI avec gestion asynchrone
-     - Frontend: HTML5 + TailwindCSS + LemonadeJS
-     - RAG: USearch + BGE (BAAI General Embedding)
-     - Optimisation: psutil + AMD Ryzen 9 HX specific
-     - GUI: Tkinter + Web interface
+## Architecture du Système
 
-    📦 DÉPENDANCES OBLIGATOIRES
+### Modules Principaux
+1. **hx365_core_fixed.py** - Moteur central avec orchestration
+2. **hx365_hardware.py** - Optimiseur matériel pour Ryzen 9 HX et NPU XDNA
+3. **hx365_rag.py** - Système RAG avec indexation vectorielle USearch
+4. **hx365_power_user.py** - Fonctions avancées pour utilisateurs expérimentés
+5. **hx365_api.py** - Serveur API compatible OpenAI
+6. **hx365_system.py** - Coordination des composants
+7. **main_final.py** - Point d'entrée principal
+8. **hx365_tkinter_gui.py** - Interface Tkinter complète
 
-    Dépendances Python
+### Interfaces
+- **hx365_gui.html** - Interface graphique moderne avec LemonadeJS et TailwindCSS
+- **hx365_test_gui.html** - Interface graphique pour les tests
+- **hx365_gui_improved.html** - Interface graphique améliorée
 
-      1 fastapi>=0.104.1
-      2 uvicorn>=0.24.0
-      3 httpx>=0.25.2
-      4 pydantic>=2.5.0
-      5 psutil>=5.9.6
-      6 usearch>=2.0.0
-      7 transformers>=4.21.0
-      8 torch>=1.13.0
-      9 numpy>=1.21.0
-     10 nltk>=3.8.1
+### Scripts d'Exécution
+- **lancer_systeme.bat** - Script de lancement du système
+- **lancer_chatbot.bat** - Script de lancement du chatbot
+- **run_final.bat** - Script de vérification finale
 
-    Dépendances Frontend
-     - TailwindCSS: Framework CSS moderne
-     - LemonadeJS: Framework réactif JavaScript
-     - Chart.js: Librairie de graphiques
-     - Font Awesome: Icônes vectorielles
+## Fonctionnalités
 
-    📚 CITATIONS OBLIGATOIRES
+### Backend Orchestration
+- Communication bidirectionnelle entre utilisateur, FastFlowLM et Companion
+- Gestion d'état en temps réel des services (Ready/Busy/Error)
+- Optimisation performance Ryzen 9 avec affinité CPU
 
-    Sources Officielles
-     1. FastAPI Documentation - https://fastapi.tiangolo.com/
-        - Framework web asynchrone utilisé pour l'API
+### Système RAG
+- Ingestion de documents massifs avec chunking intelligent
+- Indexation vectorielle via USearch pour une latence minimale
+- Gestionnaire de contexte avec "fenêtre glissante"
 
-     2. USearch Documentation - https://github.com/unum-cloud/usearch
-        - Système d'indexation vectorielle pour le RAG
+### Interface Graphique
+- Design Glassmorphism Dark, ergonomique, orienté "Tableau de bord de contrôle"
+- Panneau de configuration, moniteur de ressources et zone d'entrée pour copier-coller massif
+- Support du mode hybride avec Companion pour enrichissement
 
-     3. Hugging Face BGE Model - https://huggingface.co/BAAI/bge-small-en-v1.5
-        - Modèle d'embeddings sémantiques BGE
+### Fonctionnalités Avancées
+- Mode hybride avec Companion pour enrichissement
+- Journal terminal pour le débogage et l'ingénierie inverse
+- Commandes slash (/reset, /config, /npu-reboot, etc.)
+- Liste blanche des agents CLI pour éviter les injections
 
-     4. AMD Ryzen AI Documentation - https://ryzenai.docs.amd.com/
-        - Optimisation matérielle pour les processeurs Ryzen
+## Installation
 
-     5. PyTorch Documentation - https://pytorch.org/
-        - Framework ML pour les embeddings
+### Prérequis
+- Python 3.8 ou supérieur
+- Pip (gestionnaire de paquets Python)
 
-     6. Transformers Documentation - https://huggingface.co/docs/transformers
-        - Modèles de langage pour le traitement NLP
+### Étapes d'Installation
+1. Clonez ou téléchargez le projet
+2. Installez les dépendances requises :
+   ```bash
+   pip install -r requirements_fixed.txt
+   ```
 
-     7. psutil Documentation - https://psutil.readthedocs.io/
-        - Surveillance système et optimisation des ressources
+### Dépendances Requises
+- fastapi>=0.104.1
+- uvicorn>=0.24.0
+- httpx>=0.25.2
+- pydantic>=2.5.0
+- psutil>=5.9.6
+- usearch>=2.0.0
+- transformers>=4.21.0
+- torch>=1.13.0
+- numpy>=1.21.0
+- nltk>=3.8.1
 
-     8. OpenAI API Reference - https://platform.openai.com/docs/api-reference/chat
-        - Compatibilité API pour les chat completions
+## Configuration
 
-    Projets Open Source Inspirants
-     9. FastFlowLM - https://fastflowlm.com/docs/
-        - Moteur d'inférence utilisé comme base
+Le système utilise plusieurs variables d'environnement :
+- `FASTFLOWLM_BASE` : URL de base de l'API FastFlowLM (par défaut: "http://127.0.0.1:52625/v1")
+- `COMPANION_BASE` : URL de base de l'API FastFlow Companion (par défaut: "http://127.0.0.1:52626/v1")
+- `EMBEDDING_DIM` : Dimension des embeddings (par défaut: 384)
+- `CHUNK_SIZE` : Taille des chunks pour le RAG (par défaut: 512)
+- `MAX_CONTEXT_TOKENS` : Nombre maximal de tokens de contexte (par défaut: 4096)
+- `INDEX_FILE` : Fichier d'index vectoriel (par défaut: "hx365_vector_index.us")
 
-     10. LemonadeJS - https://lemonadejs.net/
-         - Framework réactif pour l'interface utilisateur
+## Utilisation
 
-    🏗️ PATRON D'ARCHITECTURE
+### Lancement du Serveur
+Pour démarrer le centre de commande HX365 :
+```bash
+python main_final.py
+```
 
-    Modèle de Conception
-     - Architecture Hexagonale: Séparation claire des couches métier, infrastructure et interface
-     - Inversion de Dépendances: Les modules dépendent d'abstractions
-     - Séparation des Préoccupations: Chaque module a une responsabilité unique
+Options disponibles :
+- `--host HOST` : Hôte pour le serveur API (par défaut: 127.0.0.1)
+- `--port PORT` : Port pour le serveur API (par défaut: 8080)
+- `--no-gui` : Ne pas ouvrir l'interface graphique
+- `--check-services` : Vérifier l'état des services et quitter
+- `--demo-mode` : Exécuter en mode démo avec des données d'exemple
 
-    Modèle de Déploiement
-     - API Gateway: FastAPI comme point d'entrée unique
-     - Services Indépendants: Modules découplés avec interfaces claires
-     - Stockage Vectoriel: USearch pour la recherche sémantique
-     - Interface Multi-Plateforme: Web + Tkinter + CLI
+### Interfaces Disponibles
+1. **Interface Web** : Ouvrez `hx365_gui.html` dans votre navigateur
+2. **Interface Tkinter** : Exécutez `python hx365_tkinter_gui.py`
+3. **Interface de Tests** : Ouvrez `hx365_test_gui.html` dans votre navigateur
 
-    📁 STRUCTURE GIT
+## Structure du Projet
 
-    Arborescence du Répertoire
+```
+final/
+├── hx365_core_fixed.py          # Moteur central
+├── hx365_hardware.py            # Optimisation matérielle
+├── hx365_rag.py                 # Système RAG
+├── hx365_power_user.py          # Fonctions avancées
+├── hx365_api.py                 # Serveur API
+├── hx365_system.py              # Coordination des composants
+├── main_final.py                # Point d'entrée principal
+├── hx365_tkinter_gui.py         # Interface Tkinter
+├── hx365_gui.html               # Interface graphique principale
+├── hx365_test_gui.html          # Interface de tests
+├── hx365_gui_improved.html      # Interface améliorée
+├── lancer_systeme.bat           # Script de lancement système
+├── lancer_chatbot.bat           # Script de lancement chatbot
+├── run_final.bat                # Script de vérification
+├── requirements_fixed.txt       # Dépendances
+├── README.md                    # Documentation principale
+├── SYSTEME_COMPLET.md           # Documentation système
+├── VALIDATION_CHATBOT_FASTFLOWLM.md  # Validation
+├── CORRECTIONS_FINALES.md       # Corrections appliquées
+└── TESTING.md                   # Documentation des tests
+```
 
-      1 hx365-command-center/
-      2 ├── backend/
-      3 │   ├── core/
-      4 │   ├── api/
-      5 │   └── hardware/
-      6 ├── frontend/
-      7 │   ├── gui/
-      8 │   └── test/
-      9 ├── rag/
-     10 │   └── engine/
-     11 ├── gui/
-     12 │   └── tkinter/
-     13 ├── tests/
-     14 ├── docs/
-     15 ├── scripts/
-     16 ├── requirements.txt
-     17 ├── README.md
-     18 ├── LICENSE
-     19 └── .gitignore
+## Sécurité
 
-    Git Workflow
-     - Branching Strategy: Git Flow (main, develop, feature/*, hotfix/*)
-     - Commit Convention: Conventional Commits (feat:, fix:, docs:, etc.)
-     - Tagging: Versions sémantiques (v1.0.0)
+- Liste blanche des agents CLI pour éviter les injections de commandes
+- Validation des entrées utilisateur
+- Ressources limitées (CPU, mémoire, temps)
+- Isolation du réseau pour les outils Companion
 
-    Fichiers Git Essentiels
-     - .gitignore - Fichiers et dossiers à ignorer
-     - LICENSE - Licence MIT
-     - README.md - Documentation principale
-     - requirements.txt - Dépendances Python
-     - docs/ - Documentation technique
+## Performance
 
-    🔧 TECHNOLOGIES UTILISÉES
+- Optimisation pour AMD Ryzen 9 HX avec affinité CPU
+- Surveillance de l'activité du NPU via les compteurs MCDM
+- Gestion de la mémoire pour éviter les fuites
+- Faible latence grâce à l'indexation vectorielle USearch
 
-    Backend
-     - Python 3.8+: Langage principal
-     - FastAPI: Framework web asynchrone
-     - httpx: Client HTTP asynchrone
-     - psutil: Surveillance système
-     - asyncio: Programmation asynchrone
+## Dépannage
 
-    RAG & ML
-     - USearch: Indexation vectorielle
-     - Transformers: Modèles ML
-     - PyTorch: Framework ML
-     - NumPy: Calcul numérique
-     - NLTK: Traitement du langage naturel
+### Problèmes Courants
+- **FastFlowLM non détecté** : Vérifiez que FastFlowLM est en cours d'exécution sur le port 52625
+- **Problèmes d'optimisation Ryzen 9** : Vérifiez que les pilotes AMD sont à jour
+- **Problèmes de performance** : Surveillez l'utilisation CPU et RAM
 
-    Frontend
-     - HTML5: Structure
-     - CSS3/TailwindCSS: Style
-     - JavaScript: Interactivité
-     - LemonadeJS: Réactivité
-     - Chart.js: Visualisation
+### Journaux Système
+Consultez les fichiers de journalisation pour des informations de débogage détaillées :
+- `hx365_main.log` - Journaux du point d'entrée principal
+- `hx365_core.log` - Journaux du moteur central
 
-    Outils de Développement
-     - Git: Gestion de version
-     - GitHub: Hébergement de code
-     - Virtual Environments: Isolation des dépendances
-     - pytest: Tests unitaires
-     - Black: Formatage de code
+## Licence
 
-    📊 PATRON DE COMMUNICATION
-
-    Backend ↔ Frontend
-     - API REST: FastAPI endpoints
-     - Streaming SSE: Server-Sent Events pour les réponses en direct
-     - WebSocket: Communication bidirectionnelle (si nécessaire)
-     - JSON: Format de données standard
-
-    Modules Internes
-     - Inversion de Contrôle: Injection de dépendances
-     - Observateur: Surveillance des changements d'état
-     - Stratégie: Algorithmes interchangeables (RAG, embeddings)
-     - Fabrique: Création d'objets complexes
-
-    🔐 SÉCURITÉ
-
-    Mesures de Sécurité
-     - Validation d'Entrée: Sanitization des données utilisateur
-     - Liste Blanche: Agents CLI autorisés
-     - Limitation de Taux: Protection contre les abus
-     - Authentification: Si déployé en production
-     - Chiffrement: Communications HTTPS
-
-    Bonnes Pratiques
-     - Principe du Moindre Privilege: Accès minimal requis
-     - Journalisation: Suivi des activités système
-     - Validation des Schémas: Pydantic pour la validation
-     - Gestion des Erreurs: Messages explicites et sécurisés
-
-    🚀 PERFORMANCE
-
-    Optimisations
-     - Affinité CPU: Pour les processeurs Ryzen 9 HX
-     - Cache d'Embeddings: Réduction des calculs répétitifs
-     - Pooling de Connexions: httpx pour les appels API
-     - Gestion de la Mémoire: gc.collect() stratégique
-     - Indexation Vectorielle: Recherche rapide avec USearch
-
-    Surveillance
-     - Métriques Système: CPU, RAM, NPU via psutil
-     - Latence: Mesure des temps de réponse
-     - Utilisation des Ressources: Suivi en temps réel
-     - Journalisation des Performances: Analyse post-mortem
-
-    🧪 TESTS
-
-    Stratégie de Test
-     - Tests Unitaires: pytest pour les modules individuels
-     - Tests d'Intégration: Flux complets de bout en bout
-     - Tests de Performance: Mesure des temps de réponse
-     - Tests de Charge: Capacité sous contrainte
-     - Tests de Sécurité: Validation des protections
-
-    Outils de Test
-     - pytest: Framework de test
-     - mock: Simulation d'objets externes
-     - coverage: Mesure de la couverture de code
-     - locust: Tests de charge (optionnel)
-
-    📦 DÉPLOIEMENT
-
-    Environnement de Production
-     - Conteneurisation: Docker (optionnel)
-     - Reverse Proxy: nginx pour la gestion HTTP
-     - Supervision: systemd ou pm2 pour la gestion des processus
-     - Journalisation: Centralisée avec rotation
-     - Sauvegarde: Sauvegarde des données RAG
-
-    Configuration
-     - Variables d'Environnement: Configuration externe
-     - Fichiers de Configuration: YAML/JSON pour les paramètres
-     - Gestion des Secrets: Vault ou variables chiffrées
-     - Multi-Environnement: Dev, staging, prod
-
-    🔄 MAINTENANCE
-
-    Bonnes Pratiques
-     - Documentation: Code commenté et documentation externe
-     - Tests Automatisés: CI/CD avec exécution des tests
-     - Revues de Code: Validation par les pairs
-     - Mises à Jour: Suivi des dépendances
-     - Surveillance: Système de monitoring en production
-
-    Outils de Maintenance
-     - pre-commit: Hooks pour la qualité du code
-     - mypy: Vérification des types
-     - flake8: Linting du code
-     - bandit: Analyse de sécurité
-     - safety: Vérification des vulnérabilités de dépendances
-    </parameter>
-    <parameter=file_path>
-    C:\Users\videl\Desktop\Nouveau dossier\Nouveau dossier (2)\final\GITCORE_ARCHITECTURE.md
-    </parameter>
-    </function>
-    </tool_call
+Ce projet est distribué sous la licence MIT.

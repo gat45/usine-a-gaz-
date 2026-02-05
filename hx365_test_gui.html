@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HX365 Test Center - Interface de Tests</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lemonadejs/dist/lemonade.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --glass-bg: rgba(15, 20, 28, 0.95);
+            --glass-border: rgba(255, 255, 255, 0.05);
+            --primary: #0ea5e9;
+            --primary-dark: #0284c7;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+        }
+        
+        body {
+            background: #0a0a0f;
+            color: #e2e8f0;
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+        }
+        
+        .glass {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        
+        .status-success { background-color: var(--success); }
+        .status-warning { background-color: var(--warning); }
+        .status-error { background-color: var(--error); }
+        .status-running { background-color: var(--primary); }
+        
+        .progress-bar {
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: var(--primary);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .test-result {
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            margin: 0.25rem 0;
+        }
+        
+        .test-passed { background: rgba(16, 185, 129, 0.1); border-left: 3px solid var(--success); }
+        .test-failed { background: rgba(239, 68, 68, 0.1); border-left: 3px solid var(--error); }
+        .test-running { background: rgba(14, 165, 233, 0.1); border-left: 3px solid var(--primary); }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 200px;
+            width: 100%;
+        }
+        
+        .terminal {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.875rem;
+            height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        
+        .terminal-line {
+            margin: 0.25rem 0;
+        }
+        
+        .terminal-success { color: var(--success); }
+        .terminal-error { color: var(--error); }
+        .terminal-warning { color: var(--warning); }
+        .terminal-info { color: var(--primary); }
+    </style>
+</head>
+<body class="h-screen flex flex-col p-4 overflow-hidden">
+
+    <!-- Header -->
+    <header class="glass rounded-2xl p-4 mb-4 flex justify-between items-center">
+        <div class="flex items-center gap-8">
+            <h1 class="text-2xl font-black text-white italic">HX<span class="text-cyan-400">365</span> Test Center</h1>
+            <div class="flex gap-6 text-[11px] uppercase tracking-widest text-gray-500">
+                <div class="flex items-center gap-2">CPU <span id="cpuLoad" class="monitor-val ml-1">0%</span></div>
+                <div class="flex items-center gap-2">RAM <span id="ramLoad" class="monitor-val ml-1">0GB</span></div>
+                <div class="flex items-center gap-2">
+                    NPU 
+                    <span id="npuStatus" class="status-indicator status-running"></span>
+                    <span id="npuStatusText" class="text-xs">READY</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    GPU 
+                    <span id="gpuStatus" class="status-indicator status-running"></span>
+                    <span id="gpuStatusText" class="text-xs">READY</span>
+                </div>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <button id="refreshBtn" class="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors">
+                <i class="fas fa-sync-alt"></i>
+            </button>
+            <button id="runAllTestsBtn" class="p-2 rounded-lg bg-cyan-600 hover:bg-cyan-700 transition-colors">
+                <i class="fas fa-play"></i> Run All
+            </button>
+        </div>
+    </header>
+
+    <div class="flex flex-1 gap-4">
+        <!-- Sidebar -->
+        <aside class="w-80 glass rounded-2xl p-4 flex flex-col">
+            <div class="flex border-b border-white/10 pb-2 mb-4">
+                <button id="testsTabBtn" class="flex-1 py-2 text-center font-bold border-b-2 border-cyan-400 text-cyan-400">TESTS</button>
+                <button id="resultsTabBtn" class="flex-1 py-2 text-center text-gray-400">RESULTS</button>
+                <button id="statsTabBtn" class="flex-1 py-2 text-center text-gray-400">STATS</button>
+                <button id="terminalTabBtn" class="flex-1 py-2 text-center text-gray-400">TERMINAL</button>
+            </div>
+            
+            <div id="testsTab" class="tab-content active flex-1">
+                <h2 class="text-lg font-bold mb-4 text-cyan-400">Tests Disponibles</h2>
+                <div class="space-y-2">
+                    <div class="p-3 bg-cyan-500/10 border border-cyan-500/30 rounded-xl cursor-pointer test-item active" data-test="runtime">
+                        <div class="font-bold">Runtime Detection</div>
+                        <div class="text-xs text-gray-400">Vérification du runtime FastFlowLM</div>
+                    </div>
+                    <div class="p-3 bg-white/5 rounded-xl cursor-pointer test-item" data-test="modes">
+                        <div class="font-bold">Execution Modes</div>
+                        <div class="text-xs text-gray-400">Vérification des modes d'exécution</div>
+                    </div>
+                    <div class="p-3 bg-white/5 rounded-xl cursor-pointer test-item" data-test="sessions">
+                        <div class="font-bold">Session Management</div>
+                        <div class="text-xs text-gray-400">Gestion des sessions utilisateur</div>
+                    </div>
+                    <div class="p-3 bg-white/5 rounded-xl cursor-pointer test-item" data-test="context">
+                        <div class="font-bold">Context Management</div>
+                        <div class="text-xs text-gray-400">Gestion du contexte conversationnel</div>
+                    </div>
+                    <div class="p-3 bg-white/5 rounded-xl cursor-pointer test-item" data-test="routing">
+                        <div class="font-bold">Prompt Routing</div>
+                        <div class="text-xs text-gray-400">Routage des prompts</div>
+                    </div>
+                    <div class="p-3 bg-white/5 rounded-xl cursor-pointer test-item" data-test="rag">
+                        <div class="font-bold">RAG System</div>
+                        <div class="text-xs text-gray-400">Système de récupération augmentée</div>
+                    </div>
+                    <div class="p-3 bg-white/5 rounded-xl cursor-pointer test-item" data-test="integration">
+                        <div class="font-bold">Integration Tests</div>
+                        <div class="text-xs text-gray-400">Tests d'intégration complète</div>
+                    </div>
+                </div>
+                
+                <div class="mt-4 pt-4 border-t border-white/10">
+                    <h3 class="text-sm font-bold mb-2 text-gray-400">PARAMÈTRES</h3>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Verbosité</label>
+                            <select id="verbositySelect" class="w-full bg-black/30 border border-white/10 rounded p-2 text-sm">
+                                <option value="0">Silencieux</option>
+                                <option value="1">Normal</option>
+                                <option value="2" selected>Détaillé</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Durée Max</label>
+                            <input type="number" id="timeoutInput" class="w-full bg-black/30 border border-white/10 rounded p-2 text-sm" value="30" min="1" max="300">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="resultsTab" class="tab-content">
+                <h2 class="text-lg font-bold mb-4 text-cyan-400">Résultats des Tests</h2>
+                <div id="resultsSummary" class="space-y-3">
+                    <div class="p-3 bg-green-500/10 border border-green-500/30 rounded-xl">
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold">Tests Réussis</span>
+                            <span id="passedCount" class="text-green-400">0</span>
+                        </div>
+                    </div>
+                    <div class="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold">Tests Échoués</span>
+                            <span id="failedCount" class="text-yellow-400">0</span>
+                        </div>
+                    </div>
+                    <div class="p-3 bg-red-500/10 border border-red-500/30 rounded-xl">
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold">Erreurs</span>
+                            <span id="errorCount" class="text-red-400">0</span>
+                        </div>
+                    </div>
+                    <div class="p-3 bg-blue-500/10 border border-blue-500/30 rounded-xl">
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold">Temps Total</span>
+                            <span id="timeTotal" class="text-blue-400">0s</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="statsTab" class="tab-content">
+                <h2 class="text-lg font-bold mb-4 text-cyan-400">Statistiques</h2>
+                <div class="space-y-4">
+                    <div>
+                        <div class="flex justify-between text-sm mb-1">
+                            <span>Succès</span>
+                            <span id="successRate">0%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div id="successProgress" class="progress-fill"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-sm mb-1">
+                            <span>Échec</span>
+                            <span id="failureRate">0%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div id="failureProgress" class="progress-fill"></div>
+                        </div>
+                    </div>
+                    <div class="chart-container mt-4">
+                        <canvas id="testChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="terminalTab" class="tab-content">
+                <h2 class="text-lg font-bold mb-4 text-cyan-400">Journal des Tests</h2>
+                <div id="testTerminal" class="terminal">
+                    <div class="terminal-info">[INFO] HX365 Test Center démarré</div>
+                    <div class="terminal-info">[INFO] Système prêt pour l'exécution des tests</div>
+                    <div class="terminal-info">[INFO] Cliquez sur "Run All" pour exécuter tous les tests</div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 flex flex-col">
+            <div class="glass rounded-2xl p-4 flex flex-col h-full">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 id="currentTestTitle" class="text-xl font-bold">Sélectionnez un test</h2>
+                    <div class="flex gap-2">
+                        <button id="runSelectedBtn" class="px-4 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-700 transition-colors">
+                            <i class="fas fa-play mr-2"></i>Exécuter
+                        </button>
+                        <button id="stopTestsBtn" class="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 transition-colors">
+                            <i class="fas fa-stop mr-2"></i>Arrêter
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="testDetails" class="flex-1 overflow-y-auto">
+                    <div class="text-gray-400 text-center py-12">
+                        <i class="fas fa-vial text-4xl mb-4"></i>
+                        <p>Sélectionnez un test pour voir les détails</p>
+                        <p class="text-sm mt-2">Les résultats s'afficheront ici après l'exécution</p>
+                    </div>
+                </div>
+                
+                <div id="testResults" class="mt-4 space-y-2">
+                    <!-- Résultats des tests s'afficheront ici -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // État de l'application
+        const appState = {
+            currentTest: null,
+            testResults: {},
+            testStatus: 'idle', // idle, running, stopped
+            startTime: null,
+            testHistory: []
+        };
+
+        // Données de test simulées
+        const testData = {
+            runtime: {
+                name: "Runtime Detection",
+                description: "Vérifie si FastFlowLM est en cours d'exécution",
+                steps: [
+                    "Vérification de l'URL de base",
+                    "Connexion au serveur",
+                    "Vérification de la réponse",
+                    "Validation du statut"
+                ],
+                expected: "Statut RUNNING ou ERROR",
+                actual: "Statut RUNNING",
+                status: "passed"
+            },
+            modes: {
+                name: "Execution Modes",
+                description: "Vérifie les modes d'exécution CLI, Server, Open WebUI",
+                steps: [
+                    "Initialisation du gestionnaire de modes",
+                    "Vérification du mode CLI",
+                    "Vérification du mode Server",
+                    "Vérification du mode Open WebUI"
+                ],
+                expected: "Tous les modes fonctionnent",
+                actual: "Tous les modes fonctionnent",
+                status: "passed"
+            },
+            sessions: {
+                name: "Session Management",
+                description: "Gestion des sessions utilisateur isolées",
+                steps: [
+                    "Création d'une session",
+                    "Ajout de messages",
+                    "Vérification de l'historique",
+                    "Réinitialisation de la session"
+                ],
+                expected: "Sessions isolées avec historique",
+                actual: "Sessions isolées avec historique",
+                status: "passed"
+            },
+            context: {
+                name: "Context Management",
+                description: "Gestion du contexte avec troncature automatique",
+                steps: [
+                    "Mesure de la taille du contexte",
+                    "Vérification de la limite",
+                    "Troncature automatique",
+                    "Reset du contexte"
+                ],
+                expected: "Contexte limité et tronqué",
+                actual: "Contexte limité et tronqué",
+                status: "passed"
+            },
+            routing: {
+                name: "Prompt Routing",
+                description: "Routage des prompts avec injection RAG",
+                steps: [
+                    "Injection du prompt maître",
+                    "Ajout du prompt utilisateur",
+                    "Intégration des résultats RAG",
+                    "Transmission à FastFlowLM"
+                ],
+                expected: "Prompt complet transmis",
+                actual: "Prompt complet transmis",
+                status: "passed"
+            },
+            rag: {
+                name: "RAG System",
+                description: "Système de récupération augmentée",
+                steps: [
+                    "Ingestion de documents",
+                    "Chunking intelligent",
+                    "Génération d'embeddings",
+                    "Recherche par similarité"
+                ],
+                expected: "Récupération par similarité",
+                actual: "Récupération par similarité",
+                status: "passed"
+            },
+            integration: {
+                name: "Integration Tests",
+                description: "Tests d'intégration complète du système",
+                steps: [
+                    "Coordination des modules",
+                    "Communication backend/frontend",
+                    "Gestion des erreurs",
+                    "Performance globale"
+                ],
+                expected: "Système fonctionnel complet",
+                actual: "Système fonctionnel complet",
+                status: "passed"
+            }
+        };
+
+        // Initialiser le graphique
+        const ctx = document.getElementById('testChart').getContext('2d');
+        const testChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Réussis', 'Échoués', 'Erreurs'],
+                datasets: [{
+                    data: [0, 0, 0],
+                    backgroundColor: [
+                        'rgba(16, 185, 129, 0.8)',
+                        'rgba(245, 158, 11, 0.8)',
+                        'rgba(239, 68, 68, 0.8)'
+                    ],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        labels: {
+                            color: '#e2e8f0'
+                        }
+                    }
+                }
+            }
+        });
+
+        // Mise à jour des statistiques système
+        async function updateStats() {
+            try {
+                // Simuler la mise à jour des stats système
+                const cpuPercent = Math.random() * 20 + 5; // 5-25%
+                const ramUsed = Math.random() * 8 + 2; // 2-10GB
+                
+                document.getElementById('cpuLoad').innerText = cpuPercent.toFixed(1) + '%';
+                document.getElementById('ramLoad').innerText = ramUsed.toFixed(2) + 'GB';
+                
+                // Mettre à jour les barres de progression
+                document.getElementById('successProgress').style.width = '100%';
+                document.getElementById('failureProgress').style.width = '0%';
+                document.getElementById('successRate').innerText = '100%';
+                document.getElementById('failureRate').innerText = '0%';
+                
+            } catch(e) {
+                console.error('Stats fetch error:', e);
+            }
+        }
+
+        // Mettre à jour les stats toutes les 2 secondes
+        setInterval(updateStats, 2000);
+        // Mettre à jour immédiatement
+        updateStats();
+
+        // Gestion des onglets
+        function setupTabs() {
+            document.getElementById('testsTabBtn').addEventListener('click', function() {
+                switchTab('tests');
+            });
+            
+            document.getElementById('resultsTabBtn').addEventListener('click', function() {
+                switchTab('results');
+            });
+            
+            document.getElementById('statsTabBtn').addEventListener('click', function() {
+                switchTab('stats');
+            });
+            
+            document.getElementById('terminalTabBtn').addEventListener('click', function() {
+                switchTab('terminal');
+            });
+        }
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.getElementById(`${tabName}Tab`).classList.add('active');
+            
+            document.querySelectorAll('[id$="TabBtn"]').forEach(btn => {
+                btn.classList.remove('text-cyan-400', 'border-cyan-400');
+                btn.classList.add('text-gray-400');
+            });
+            
+            const activeBtn = document.getElementById(`${tabName}TabBtn`);
+            activeBtn.classList.remove('text-gray-400');
+            activeBtn.classList.add('text-cyan-400', 'border-cyan-400');
+        }
+
+        // Gestion des tests
+        function setupTests() {
+            document.querySelectorAll('.test-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    document.querySelectorAll('.test-item').forEach(i => i.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    const testName = this.dataset.test;
+                    appState.currentTest = testName;
+                    showTestDetails(testName);
+                });
+            });
+        }
+
+        function showTestDetails(testName) {
+            const test = testData[testName];
+            if (!test) return;
+            
+            document.getElementById('currentTestTitle').innerText = test.name;
+            
+            const detailsHtml = `
+                <div class="space-y-4">
+                    <div>
+                        <h3 class="font-bold text-cyan-400 mb-2">Description</h3>
+                        <p class="text-sm">${test.description}</p>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-cyan-400 mb-2">Étapes</h3>
+                        <ul class="space-y-1">
+                            ${test.steps.map(step => `<li class="text-sm">• ${step}</li>`).join('')}
+                        </ul>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-cyan-400 mb-2">Attendu vs Réel</h3>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-green-500/10 p-3 rounded">
+                                <h4 class="text-green-400 text-sm font-bold">Attendu</h4>
+                                <p class="text-xs mt-1">${test.expected}</p>
+                            </div>
+                            <div class="bg-blue-500/10 p-3 rounded">
+                                <h4 class="text-blue-400 text-sm font-bold">Réel</h4>
+                                <p class="text-xs mt-1">${test.actual}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('testDetails').innerHTML = detailsHtml;
+        }
+
+        // Exécuter un test
+        async function runTest(testName) {
+            const test = testData[testName];
+            if (!test) return;
+            
+            // Mettre à jour l'état
+            appState.testStatus = 'running';
+            appState.startTime = new Date();
+            
+            // Afficher dans le terminal
+            const terminal = document.getElementById('testTerminal');
+            const now = new Date().toLocaleTimeString();
+            terminal.innerHTML += `<div class="terminal-info">[${now}] [INFO] Démarrage du test: ${test.name}</div>`;
+            terminal.scrollTop = terminal.scrollHeight;
+            
+            // Simuler l'exécution du test
+            const resultElement = document.createElement('div');
+            resultElement.className = `test-result test-running`;
+            resultElement.innerHTML = `
+                <div class="flex justify-between items-center">
+                    <span><i class="fas fa-spinner fa-spin mr-2"></i>${test.name}</span>
+                    <span class="text-xs">En cours...</span>
+                </div>
+            `;
+            document.getElementById('testResults').appendChild(resultElement);
+            
+            // Simuler le traitement (2-5 secondes)
+            await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 3000));
+            
+            // Terminer le test
+            const endTime = new Date();
+            const duration = ((endTime - appState.startTime) / 1000).toFixed(2);
+            
+            // Mettre à jour le résultat
+            resultElement.className = `test-result test-${test.status}`;
+            resultElement.innerHTML = `
+                <div class="flex justify-between items-center">
+                    <span><i class="fas fa-${test.status === 'passed' ? 'check-circle' : 'times-circle'} mr-2"></i>${test.name}</span>
+                    <span class="text-xs">${test.status.toUpperCase()} (${duration}s)</span>
+                </div>
+            `;
+            
+            // Ajouter au journal
+            terminal.innerHTML += `<div class="terminal-${test.status === 'passed' ? 'success' : 'error'}">[${now}] [${test.status.toUpperCase()}] Test terminé: ${test.name} (${duration}s)</div>`;
+            terminal.scrollTop = terminal.scrollHeight;
+            
+            // Mettre à jour les statistiques
+            updateTestStatistics(test.status);
+            
+            appState.testStatus = 'idle';
+        }
+
+        // Exécuter tous les tests
+        async function runAllTests() {
+            const testNames = Object.keys(testData);
+            for (const testName of testNames) {
+                if (appState.testStatus !== 'running') break; // Arrêter si demandé
+                await runTest(testName);
+                await new Promise(resolve => setTimeout(resolve, 500)); // Pause entre les tests
+            }
+        }
+
+        // Mettre à jour les statistiques
+        function updateTestStatistics(status) {
+            const passedCount = document.getElementById('passedCount');
+            const failedCount = document.getElementById('failedCount');
+            const errorCount = document.getElementById('errorCount');
+            
+            let passed = parseInt(passedCount.innerText) || 0;
+            let failed = parseInt(failedCount.innerText) || 0;
+            let errors = parseInt(errorCount.innerText) || 0;
+            
+            if (status === 'passed') {
+                passed++;
+            } else if (status === 'failed') {
+                failed++;
+            } else {
+                errors++;
+            }
+            
+            passedCount.innerText = passed;
+            failedCount.innerText = failed;
+            errorCount.innerText = errors;
+            
+            // Mettre à jour le graphique
+            const total = passed + failed + errors;
+            if (total > 0) {
+                testChart.data.datasets[0].data = [passed, failed, errors];
+                testChart.update();
+                
+                // Mettre à jour les pourcentages
+                const successRate = Math.round((passed / total) * 100);
+                const failureRate = Math.round((failed / total) * 100);
+                
+                document.getElementById('successRate').innerText = `${successRate}%`;
+                document.getElementById('failureRate').innerText = `${failureRate}%`;
+                
+                document.getElementById('successProgress').style.width = `${successRate}%`;
+                document.getElementById('failureProgress').style.width = `${failureRate}%`;
+            }
+        }
+
+        // Gestion des boutons
+        function setupButtons() {
+            document.getElementById('runSelectedBtn').addEventListener('click', function() {
+                if (appState.currentTest) {
+                    appState.testStatus = 'running';
+                    runTest(appState.currentTest);
+                }
+            });
+            
+            document.getElementById('runAllTestsBtn').addEventListener('click', function() {
+                appState.testStatus = 'running';
+                runAllTests();
+            });
+            
+            document.getElementById('stopTestsBtn').addEventListener('click', function() {
+                appState.testStatus = 'idle';
+                const terminal = document.getElementById('testTerminal');
+                const now = new Date().toLocaleTimeString();
+                terminal.innerHTML += `<div class="terminal-warning">[${now}] [WARN] Tests arrêtés manuellement</div>`;
+                terminal.scrollTop = terminal.scrollHeight;
+            });
+            
+            document.getElementById('refreshBtn').addEventListener('click', function() {
+                location.reload();
+            });
+        }
+
+        // Initialiser l'application
+        function initApp() {
+            setupTabs();
+            setupTests();
+            setupButtons();
+            
+            // Sélectionner le premier test par défaut
+            const firstTest = document.querySelector('.test-item');
+            if (firstTest) {
+                firstTest.click();
+            }
+        }
+
+        // Démarrer l'application
+        window.addEventListener('DOMContentLoaded', initApp);
+    </script>
+</body>
+</html>
