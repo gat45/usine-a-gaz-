@@ -1,161 +1,127 @@
 # HX365 Command Center - Projet Final
 
-## Vue d'Ensemble
+Orchestrateur IA hybride (NPU/GPU) optimisé pour Ryzen 9 HX & XDNA NPU. Fournit orchestration, interface chat, et un système RAG basé sur USearch.
 
-HX365 Command Center est une plateforme d'orchestration IA avancée qui intègre FastFlowLM et son Companion. Le logiciel sert d'interface de pilotage matériel autant qu'une interface de chat, spécialement optimisé pour les processeurs AMD Ryzen 9 HX et les unités de traitement neuronal XDNA.
+[![CI](https://img.shields.io/badge/ci-pending-lightgrey)]() [![License](https://img.shields.io/badge/license-MIT-blue)]()
 
-## Architecture du Système
+## Statut
+Prototype — développement actif
 
-### Modules Principaux
-1. **hx365_core_fixed.py** - Moteur central avec orchestration
-2. **hx365_hardware.py** - Optimiseur matériel pour Ryzen 9 HX et NPU XDNA
-3. **hx365_rag.py** - Système RAG avec indexation vectorielle USearch
-4. **hx365_power_user.py** - Fonctions avancées pour utilisateurs expérimentés
-5. **hx365_api.py** - Serveur API compatible OpenAI
-6. **hx365_system.py** - Coordination des composants
-7. **main_final.py** - Point d'entrée principal
-8. **hx365_tkinter_gui.py** - Interface Tkinter complète
+## Quick start (3 étapes)
+1. Clonez le dépôt :
+```bash
+git clone https://github.com/gat45/usine-a-gaz-.git
+cd usine-a-gaz-
+```
 
-### Interfaces
-- **hx365_gui.html** - Interface graphique moderne avec LemonadeJS et TailwindCSS
-- **hx365_test_gui.html** - Interface graphique pour les tests
-- **hx365_gui_improved.html** - Interface graphique améliorée
+2. Créez un environnement Python et installez les dépendances :
+```bash
+python -m venv .venv
+# Windows PowerShell
+.\.venv\Scripts\Activate.ps1
+# macOS / Linux
+# source .venv/bin/activate
+pip install -r requirements.txt
+```
 
-### Scripts d'Exécution
-- **lancer_systeme.bat** - Script de lancement du système
-- **lancer_chatbot.bat** - Script de lancement du chatbot
-- **run_final.bat** - Script de vérification finale
+3. Lancer une instance minimale (API ou demo) :
+```bash
+# Si main_final.py prépare et démarre le service
+python main_final.py
 
-## Fonctionnalités
+# Ou si vous avez une app FastAPI exportée dans hx365_api.py :
+uvicorn hx365_api:app --host 0.0.0.0 --port 8080 --reload
+```
 
-### Backend Orchestration
-- Communication bidirectionnelle entre utilisateur, FastFlowLM et Companion
-- Gestion d'état en temps réel des services (Ready/Busy/Error)
-- Optimisation performance Ryzen 9 avec affinité CPU
+## Arborescence recommandée (extrait)
+- hx365_core_fixed.py — moteur d'orchestration
+- hx365_hardware.py — détection/optimisation matériel (GPU/NPU)
+- hx365_rag.py — ingestion & indexation (USearch)
+- hx365_api.py — API FastAPI
+- main_final.py — point d'entrée
+- configs/ — exemples de configuration (configs/example.yaml)
+- requirements.txt — dépendances
+- README.md, LICENSE, CONTRIBUTING.md, CODE_OF_CONDUCT.md, .github/
 
-### Système RAG
-- Ingestion de documents massifs avec chunking intelligent
-- Indexation vectorielle via USearch pour une latence minimale
-- Gestionnaire de contexte avec "fenêtre glissante"
+## Prérequis matériels et drivers (GPU / NPU)
+- CPU : AMD Ryzen 9 HX recommandé
+- GPU (optionnel) : NVIDIA — installer drivers NVIDIA + CUDA Toolkit (compatible avec la version de torch utilisée)
+- NPU XDNA : installer drivers/SDK fournis par le fabricant (documenter la version requise ici)
+- Variables d'environnement utiles :
+```bash
+# Linux / macOS
+export GPU_ENABLE=true
+export NPU_BACKEND=xdna
+export RAG_INDEX_PATH=./data/us_search.index
 
-### Interface Graphique
-- Design Glassmorphism Dark, ergonomique, orienté "Tableau de bord de contrôle"
-- Panneau de configuration, moniteur de ressources et zone d'entrée pour copier-coller massif
-- Support du mode hybride avec Companion pour enrichissement
-
-### Fonctionnalités Avancées
-- Mode hybride avec Companion pour enrichissement
-- Journal terminal pour le débogage et l'ingénierie inverse
-- Commandes slash (/reset, /config, /npu-reboot, etc.)
-- Liste blanche des agents CLI pour éviter les injections
-
-## Installation
-
-### Prérequis
-- Python 3.8 ou supérieur
-- Pip (gestionnaire de paquets Python)
-
-### Étapes d'Installation
-1. Clonez ou téléchargez le projet
-2. Installez les dépendances requises :
-   ```bash
-   pip install -r requirements_fixed.txt
-   ```
-
-### Dépendances Requises
-- fastapi>=0.104.1
-- uvicorn>=0.24.0
-- httpx>=0.25.2
-- pydantic>=2.5.0
-- psutil>=5.9.6
-- usearch>=2.0.0
-- transformers>=4.21.0
-- torch>=1.13.0
-- numpy>=1.21.0
-- nltk>=3.8.1
+# Windows (PowerShell)
+setx GPU_ENABLE true
+setx NPU_BACKEND xdna
+```
 
 ## Configuration
-
-Le système utilise plusieurs variables d'environnement :
-- `FASTFLOWLM_BASE` : URL de base de l'API FastFlowLM (par défaut: "http://127.0.0.1:52625/v1")
-- `COMPANION_BASE` : URL de base de l'API FastFlow Companion (par défaut: "http://127.0.0.1:52626/v1")
-- `EMBEDDING_DIM` : Dimension des embeddings (par défaut: 384)
-- `CHUNK_SIZE` : Taille des chunks pour le RAG (par défaut: 512)
-- `MAX_CONTEXT_TOKENS` : Nombre maximal de tokens de contexte (par défaut: 4096)
-- `INDEX_FILE` : Fichier d'index vectoriel (par défaut: "hx365_vector_index.us")
-
-## Utilisation
-
-### Lancement du Serveur
-Pour démarrer le centre de commande HX365 :
+1. Copier l'exemple :
 ```bash
-python main_final.py
+cp configs/example.yaml configs/local.yaml
+# ou sur Windows PowerShell:
+Copy-Item .\configs\example.yaml .\configs\local.yaml
+```
+2. Modifier `configs/local.yaml` pour indiquer ton matériel et chemins.
+
+## Endpoints API (exemples)
+- GET /health — vérifie l'état
+- POST /chat — body: { "prompt": "Bonjour" }
+
+Exemple curl :
+```bash
+curl -X POST http://localhost:8080/chat \
+  -H "Content-Type: application/json" \
+  -d '{"prompt":"Bonjour"}'
 ```
 
-Options disponibles :
-- `--host HOST` : Hôte pour le serveur API (par défaut: 127.0.0.1)
-- `--port PORT` : Port pour le serveur API (par défaut: 8080)
-- `--no-gui` : Ne pas ouvrir l'interface graphique
-- `--check-services` : Vérifier l'état des services et quitter
-- `--demo-mode` : Exécuter en mode démo avec des données d'exemple
-
-### Interfaces Disponibles
-1. **Interface Web** : Ouvrez `hx365_gui.html` dans votre navigateur
-2. **Interface Tkinter** : Exécutez `python hx365_tkinter_gui.py`
-3. **Interface de Tests** : Ouvrez `hx365_test_gui.html` dans votre navigateur
-
-## Structure du Projet
-
+## Tests & Qualité
+- Formatage / lint :
+```bash
+pip install black flake8 isort
+black .
+flake8
 ```
-final/
-├── hx365_core_fixed.py          # Moteur central
-├── hx365_hardware.py            # Optimisation matérielle
-├── hx365_rag.py                 # Système RAG
-├── hx365_power_user.py          # Fonctions avancées
-├── hx365_api.py                 # Serveur API
-├── hx365_system.py              # Coordination des composants
-├── main_final.py                # Point d'entrée principal
-├── hx365_tkinter_gui.py         # Interface Tkinter
-├── hx365_gui.html               # Interface graphique principale
-├── hx365_test_gui.html          # Interface de tests
-├── hx365_gui_improved.html      # Interface améliorée
-├── lancer_systeme.bat           # Script de lancement système
-├── lancer_chatbot.bat           # Script de lancement chatbot
-├── run_final.bat                # Script de vérification
-├── requirements_fixed.txt       # Dépendances
-├── README.md                    # Documentation principale
-├── SYSTEME_COMPLET.md           # Documentation système
-├── VALIDATION_CHATBOT_FASTFLOWLM.md  # Validation
-├── CORRECTIONS_FINALES.md       # Corrections appliquées
-└── TESTING.md                   # Documentation des tests
+- Tests unitaires :
+```bash
+pip install pytest
+pytest tests/
+```
+- Typage statique (optionnel) :
+```bash
+pip install mypy
+mypy .
 ```
 
-## Sécurité
+## CI (GitHub Actions)
+Un workflow de base est fourni dans `.github/workflows/ci.yml` pour exécuter lint & tests sur les PRs.
 
-- Liste blanche des agents CLI pour éviter les injections de commandes
-- Validation des entrées utilisateur
-- Ressources limitées (CPU, mémoire, temps)
-- Isolation du réseau pour les outils Companion
+## Sécurité & Confidentialité
+- Ne commitez jamais de secrets (tokens, clés privées). Utilisez `.env` (gitignored) localement et GitHub Secrets pour CI.
+- Scanner le repo avant publication : `gitleaks detect --source .`
+- Pour la RAG : obtenez le consentement pour les données sensibles ingérées et évitez de mettre des documents privés dans l'index public.
 
-## Performance
+## Contribution
+Merci de contribuer ! Workflow recommandé :
+1. Ouvrir une issue → discuter
+2. Créer une branche `feature/xxx`
+3. Ouvrir une PR avec description et tests  
+Voir `CONTRIBUTING.md` pour les détails.
 
-- Optimisation pour AMD Ryzen 9 HX avec affinité CPU
-- Surveillance de l'activité du NPU via les compteurs MCDM
-- Gestion de la mémoire pour éviter les fuites
-- Faible latence grâce à l'indexation vectorielle USearch
-
-## Dépannage
-
-### Problèmes Courants
-- **FastFlowLM non détecté** : Vérifiez que FastFlowLM est en cours d'exécution sur le port 52625
-- **Problèmes d'optimisation Ryzen 9** : Vérifiez que les pilotes AMD sont à jour
-- **Problèmes de performance** : Surveillez l'utilisation CPU et RAM
-
-### Journaux Système
-Consultez les fichiers de journalisation pour des informations de débogage détaillées :
-- `hx365_main.log` - Journaux du point d'entrée principal
-- `hx365_core.log` - Journaux du moteur central
+## Fichiers à ajouter si absent
+- LICENSE (MIT)
+- CONTRIBUTING.md
+- CODE_OF_CONDUCT.md
+- .github/workflows/ci.yml
+- configs/example.yaml
+- requirements.txt
 
 ## Licence
+MIT — voir le fichier LICENSE.
 
-Ce projet est distribué sous la licence MIT.
+## Contact
+Auteur : gat45 — https://github.com/gat45
